@@ -16,20 +16,31 @@ func main() {
 		Path("/convert").
 		HandlerFunc(convertImage)
 
-	log.Fatalln(http.ListenAndServe(":8888", router))
+	err := http.ListenAndServe(":8888", router)
+	if err != nil {
+		log.Println("Server HTTP: ", err.Error())
+	}
 }
 
 func convertImage(w http.ResponseWriter, r *http.Request) {
+	log.Println("[", r.Host, "] Incoming request.")
+
 	file, _, err := r.FormFile("image")
 
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Println("[", r.Host, "] Param error: ", err.Error())
+		http.Error(w, "Param \"image\" error: "+err.Error(), 400)
+
+		return
 	}
 
 	img, err := pnm.Decode(file)
 
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Println("[", r.Host, "] File decode error: ", err.Error())
+		http.Error(w, "File decode error: "+err.Error(), 400)
+
+		return
 	}
 
 	newImage := async(&img)
@@ -40,10 +51,13 @@ func convertImage(w http.ResponseWriter, r *http.Request) {
 	err = pnm.Encode(w, newImage, pnm.PGM)
 
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Println("[", r.Host, "] File encode error: ", err.Error())
+		http.Error(w, "File encode error: "+err.Error(), 400)
+
+		return
 	}
 
-	log.Println("Response sent.")
+	log.Println("[", r.Host, "] Response sent.")
 }
 
 func async(oldImage *image.Image) image.Image {
